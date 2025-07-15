@@ -43,14 +43,24 @@
           for (let gp of gamepads) {
             if (!gp || !gp.axes) continue;
 
-            // Oculus Touch / Quest: axes[2]=X, axes[3]=Y for left thumbstick
-            const axisX = gp.axes[2];
-            const axisY = gp.axes[3];
+            // Try both axes mappings
+            let axisX = gp.axes[2] ?? 0;
+            let axisY = gp.axes[3] ?? 0;
+
+            // If axes[2]/[3] are zero, try axes[0]/[1]
+            if (Math.abs(axisX) < 0.01 && Math.abs(axisY) < 0.01) {
+              axisX = gp.axes[0] ?? 0;
+              axisY = gp.axes[1] ?? 0;
+            }
+
+            // Debug: log axes
+            // console.log('axes:', gp.axes);
 
             if (Math.abs(axisX) > 0.1 || Math.abs(axisY) > 0.1) {
               const direction = new AFRAME.THREE.Vector3();
               camera.object3D.getWorldDirection(direction);
               direction.y = 0; // keep horizontal
+              direction.normalize();
 
               // Forward/backward
               rig.object3D.position.addScaledVector(direction, -axisY * 0.05);
