@@ -1,21 +1,82 @@
-<script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>A-Frame VR Joystick Locomotion (Quest)</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  </head>
+  <body>
+    <a-scene>
+      <!-- Red cube ahead -->
+      <a-box position="0 1.5 -5" color="red" depth="1" height="1" width="1"></a-box>
 
-<script src="https://gftruj.github.io/webzamples/aframe/controls/oculus-thumbstick-controls.js"></script>
+      <!-- Ground -->
+      <a-plane rotation="-90 0 0" width="50" height="50" color="#7BC8A4"></a-plane>
 
-<a-scene>
+      <!-- Camera rig -->
+      <a-entity id="rig">
+        <a-entity
+          id="camera"
+          camera
+          look-controls
+          position="0 1.6 0"
+        ></a-entity>
 
-    <!-- Camera + controllers rig -->
+        <!-- Hands/controllers -->
+        <a-entity oculus-touch-controls="hand: left"></a-entity>
+        <a-entity oculus-touch-controls="hand: right"></a-entity>
+      </a-entity>
 
-    <a-entity id="rig">
+      <!-- Lights -->
+      <a-entity light="type: ambient; color: #FFF"></a-entity>
+      <a-entity light="type: directional; color: #FFF; intensity: 0.5" position="1 3 2"></a-entity>
+    </a-scene>
 
-        <a-camera position="0 1.6 0"></a-camera>
+    <!-- Joystick movement script -->
+    <script>
+      AFRAME.registerComponent('gamepad-move', {
+        tick: function () {
+          const rig = document.querySelector('#rig');
+          const camera = document.querySelector('#camera');
+          const gamepads = navigator.getGamepads?.() || [];
 
-        <a-box position="0 1.6 -2" color="red"></a-box>
+          for (let gp of gamepads) {
+            if (!gp || !gp.axes) continue;
 
-        <a-entity oculus-touch-controls="hand: left" ></a-entity>
+            // Try both axes mappings
+            let axisX = gp.axes[2] ?? 0;
+            let axisY = gp.axes[3] ?? 0;
 
-        <a-entity oculus-touch-controls="hand: right" oculus-thumbstick-controls></a-entity>
+            // If axes[2]/[3] are zero, try axes[0]/[1]
+            if (Math.abs(axisX) < 0.01 && Math.abs(axisY) < 0.01) {
+              axisX = gp.axes[0] ?? 0;
+              axisY = gp.axes[1] ?? 0;
+            }
 
-    </a-entity>
+            // Debug: log axes
+            // console.log('axes:', gp.axes);
 
-</a-scene>
+            if (Math.abs(axisX) > 0.1 || Math.abs(axisY) > 0.1) {
+              const direction = new AFRAME.THREE.Vector3();
+              camera.object3D.getWorldDirection(direction);
+              direction.y = 0; // keep horizontal
+              direction.normalize();
+
+              // Forward/backward
+              rig.object3D.position.addScaledVector(direction, -axisY * 0.05);
+
+              // Strafe left/right
+              const right = new AFRAME.THREE.Vector3();
+              right.crossVectors(direction, camera.object3D.up).normalize();
+              rig.object3D.position.addScaledVector(right, axisX * 0.05);
+            }
+          }
+        }
+      });
+
+      document.querySelector('a-scene').addEventListener('loaded', () => {
+        document.querySelector('#rig').setAttribute('gamepad-move', '');
+      });
+    </script>
+  </body>
+</html>
